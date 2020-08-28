@@ -1,0 +1,15 @@
+In this stage, you will improve the usability of your text editor.
+
+The first thing to point out is that the "Save" and "Load"
+buttons take up a lot of space on the screen. You can't add a
+lot of buttons to the top bar when they contain text.
+This problem can be solved using icons instead of text.
+The constructor of JButton can take an ImageIcon instead of text.
+You should replace the buttons "Load" and "Save" with corresponding icons.
+You can download the icons from the internet.
+
+It is also impractical to restrict users to load (open) a file from only one directory — the project folder.
+The Swing library has a useful component for navigating your filesystem — JFileChooser.
+So, when the user clicks on the "Open" button (the button that previously was named "Load") you should open a
+file manager using JFileChooser and let the user choose the file he wants to open.
+Then, the contents of this file should be visible in the text editor. You can use this link to see how to use JFileChooser.
