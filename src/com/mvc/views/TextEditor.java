@@ -12,19 +12,30 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.InvalidPathException;
 import java.nio.file.Paths;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 
 public class TextEditor extends JFrame implements ActionListener {
     private HashMap componentMap;
     private JTextArea textArea;
     private String filePath;
-    private JTextField inputField;
+    private JTextField searchField;
+    private JFileChooser chooser;
+    private List<Integer> listSearch;
+    private int currentIndex = -1;
 
     public TextEditor() {
+        listSearch = new ArrayList<>();
         setTitle("Text Editor");
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         setSize(700, 500);
         setVisible(true);
+        chooser = new JFileChooser();
+//        chooser.setFileHidingEnabled(true);
+        chooser.setName("FileChooser");
+        add(chooser);
+
         displayTool();
         displayTextArea();
         displayMenuBar();
@@ -46,8 +57,8 @@ public class TextEditor extends JFrame implements ActionListener {
         GroupLayout groupLayout = new GroupLayout(panel);
         panel.setLayout(groupLayout);
 
-        inputField = new JTextField();
-        inputField.setName("FilenameField");
+        searchField = new JTextField();
+        searchField.setName("SearchField");
 
         Icon saveIcon = new ImageIcon("src\\resources\\save-icon.png");
         JButton saveButton = new JButton(saveIcon);
@@ -56,7 +67,7 @@ public class TextEditor extends JFrame implements ActionListener {
 
         Icon openIcon = new ImageIcon("src\\resources\\open-icon.png");
         JButton openButton = new JButton(openIcon);
-        openButton.setName("LoadButton");
+        openButton.setName("OpenButton");
         openButton.setBorder(new EmptyBorder(2, 4, 2,4));
 
         Icon searchIcon = new ImageIcon("src\\resources\\search-icon.png");
@@ -66,7 +77,7 @@ public class TextEditor extends JFrame implements ActionListener {
 
         Icon nextIcon = new ImageIcon("src\\resources\\next-icon.png");
         JButton nextButton = new JButton(nextIcon);
-        nextButton.setName("StartSearchButton");
+        nextButton.setName("NextMatchButton");
         nextButton.setBorder(new EmptyBorder(2, 4, 2,4));
 
         Icon previoustIcon = new ImageIcon("src\\resources\\previous-icon.png");
@@ -84,40 +95,55 @@ public class TextEditor extends JFrame implements ActionListener {
         groupLayout.setAutoCreateContainerGaps(true);
         groupLayout.setHorizontalGroup(
                 groupLayout.createSequentialGroup()
-                    .addComponent(openButton)
-                    .addComponent(saveButton)
-                    .addComponent(inputField)
-                    .addComponent(searchButton)
-                    .addComponent(previousButton)
-                    .addComponent(nextButton)
-                    .addComponent(regexCheckbox)
+                        .addComponent(openButton)
+                        .addComponent(saveButton)
+                        .addComponent(searchField)
+                        .addComponent(searchButton)
+                        .addComponent(previousButton)
+                        .addComponent(nextButton)
+                        .addComponent(regexCheckbox)
         );
         groupLayout.setVerticalGroup(
                 groupLayout.createParallelGroup(GroupLayout.Alignment.BASELINE)
-                    .addComponent(openButton)
-                    .addComponent(saveButton)
-                    .addComponent(inputField)
-                    .addComponent(searchButton)
-                    .addComponent(previousButton)
-                    .addComponent(nextButton)
-                    .addComponent(regexCheckbox)
+                        .addComponent(openButton)
+                        .addComponent(saveButton)
+                        .addComponent(searchField)
+                        .addComponent(searchButton)
+                        .addComponent(previousButton)
+                        .addComponent(nextButton)
+                        .addComponent(regexCheckbox)
         );
 
-
-        inputField.addActionListener(this);
+        searchField.addActionListener(this);
         saveButton.addActionListener(event -> saveFile());
         openButton.addActionListener(event -> readFile());
         searchButton.addActionListener(event -> {
-            String content = textArea.getText();
-            String keySearch = inputField.getText();
-            int index = content.indexOf(keySearch);
-            textArea.setCaretPosition(index + keySearch.length());
-            textArea.select(index, index + keySearch.length());
-            textArea.grabFocus();
+            currentIndex = 0;
+            findByIndex();
+        });
+        nextButton.addActionListener(event -> {
+            incrementIndex();
+            findByIndex();
+        });
+        previousButton.addActionListener( event -> {
+            decrementIndex();
+            findByIndex();
         });
         add(panel, BorderLayout.NORTH);
     }
-
+    void findByIndex() {
+        String content = textArea.getText();
+        String keySearch = searchField.getText();
+        if ((content != null && !"".equals(content)) && (keySearch != null && !"".equals(keySearch))) {
+            searchAll(content, keySearch);
+            int index = listSearch.get(currentIndex);
+            if (index != -1) {
+                textArea.setCaretPosition(index + keySearch.length());
+                textArea.select(index, index + keySearch.length());
+                textArea.grabFocus();
+            }
+        }
+    }
 
     private void displayMenuBar() {
         JMenuBar menuBar = new JMenuBar();
@@ -131,6 +157,7 @@ public class TextEditor extends JFrame implements ActionListener {
         JMenu searchMenu = new JMenu("Search");
         searchMenu.setMnemonic(KeyEvent.VK_S);
         menuBar.add(searchMenu);
+        searchMenu.setName("MenuSearch");
 
         JMenuItem searchMenuItem = new JMenuItem("Start Search");
         JMenuItem previousMenuItem = new JMenuItem("Previous Match");
@@ -183,30 +210,56 @@ public class TextEditor extends JFrame implements ActionListener {
     @Override
     public void actionPerformed(ActionEvent e) {
     }
+    private void incrementIndex() {
+        if (currentIndex == -1) {
+            currentIndex = 0;
+        } else {
+            currentIndex++;
+            if (currentIndex >= listSearch.size()) {
+                currentIndex = listSearch.size() - 1;
+            }
+        }
+    }
 
+    private void decrementIndex() {
+        currentIndex--;
+        if (currentIndex < 0) {
+            currentIndex = 0;
+        }
+    }
+    private void searchAll(String content, String key) {
+        listSearch.clear();
+        for (int i = -1; (i = content.indexOf(key, i + 1)) != -1; i++) {
+            listSearch.add(i);
+        }
+    }
     private void displayFileChooser() {
-        JFileChooser chooser = new JFileChooser();
+//        chooser.setFileHidingEnabled(false);
         int opt = chooser.showOpenDialog(this);
         if (opt == JFileChooser.APPROVE_OPTION) {
             File file = chooser.getSelectedFile();
             this.filePath = file.getPath();
         }
+//        chooser.setFileHidingEnabled(true);
     }
 
     private void readFile() {
+        textArea.setText("");
+        currentIndex = -1;
         displayFileChooser();
-        String content = readFileAsString(filePath);
-        textArea.setText(content);
+        if (filePath != null && !"".equals(filePath)) {
+            textArea.setText(readFileAsString(filePath));
+        } else {
+            textArea.setText("");
+        }
     }
 
     private void saveFile() {
         String content = textArea.getText();
-        if (filePath == null || filePath == "") {
-            displayFileChooser();
-        } else {
-            //do nothing
+        displayFileChooser();
+        if (filePath != null && !"".equals(filePath)) {
+            writeFileAsString(filePath, content);
         }
-        writeFileAsString(filePath, content);
     }
 
     private void writeFileAsString(String filename, String content) {
