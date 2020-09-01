@@ -1,8 +1,5 @@
-package com.mvc.controllers;
-import com.mvc.views.TextEditor;
-
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
+package com.thanhle.texteditor;
+import com.thanhle.texteditor.TextEditor;
 
 public class ApplicationRunner {
     public static void main(String[] args) {

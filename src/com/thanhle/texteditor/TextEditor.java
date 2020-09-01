@@ -1,4 +1,4 @@
-package com.mvc.views;
+package com.thanhle.texteditor;
 
 import javax.swing.*;
 import javax.swing.border.EmptyBorder;
@@ -15,6 +15,8 @@ import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 public class TextEditor extends JFrame implements ActionListener {
     private HashMap componentMap;
@@ -22,11 +24,15 @@ public class TextEditor extends JFrame implements ActionListener {
     private String filePath;
     private JTextField searchField;
     private JFileChooser chooser;
+    private JCheckBox regexCheckbox;
     private List<Integer> listSearch;
+    private List<List<Integer>> listSearchRegex;
     private int currentIndex = -1;
+    private boolean regexOn = false;
 
     public TextEditor() {
         listSearch = new ArrayList<>();
+        listSearchRegex = new ArrayList<>();
         setTitle("Text Editor");
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         setSize(700, 500);
@@ -85,7 +91,7 @@ public class TextEditor extends JFrame implements ActionListener {
         previousButton.setName("PreviousMatchButton");
         previousButton.setBorder(new EmptyBorder(2, 4, 2,4));
 
-        JCheckBox regexCheckbox = new JCheckBox("Use regex");
+        regexCheckbox = new JCheckBox("Use regex");
         regexCheckbox.setName("UseRegExCheckbox");
 
 //        panel.add(inputField, BorderLayout.CENTER);
@@ -129,6 +135,14 @@ public class TextEditor extends JFrame implements ActionListener {
             decrementIndex();
             findByIndex();
         });
+        regexCheckbox.addItemListener(event -> {
+            if (event.getStateChange() == 1) {
+                regexOn = true;
+            } else {
+                regexOn = false;
+            }
+        });
+
         add(panel, BorderLayout.NORTH);
     }
     void findByIndex() {
@@ -136,11 +150,48 @@ public class TextEditor extends JFrame implements ActionListener {
         String keySearch = searchField.getText();
         if ((content != null && !"".equals(content)) && (keySearch != null && !"".equals(keySearch))) {
             searchAll(content, keySearch);
-            int index = listSearch.get(currentIndex);
-            if (index != -1) {
-                textArea.setCaretPosition(index + keySearch.length());
-                textArea.select(index, index + keySearch.length());
+            int indexStart;
+            int indexEnd;
+            if (regexOn) {
+                if (listSearchRegex.size() == 0) {
+                    return;
+                }
+                System.out.println("Current Index: " + currentIndex);
+                System.out.println(listSearchRegex);
+                indexStart = listSearchRegex.get(currentIndex).get(0);
+                indexEnd = listSearchRegex.get(currentIndex).get(1);
+            } else {
+                if (listSearch.size() == 0) {
+                    return;
+                }
+                indexStart = listSearch.get(currentIndex);
+                indexEnd = indexStart + keySearch.length();
+            }
+            if (indexStart != -1) {
+                textArea.setCaretPosition(indexEnd);
+                textArea.select(indexStart, indexEnd);
                 textArea.grabFocus();
+            }
+        }
+    }
+
+    private void searchAll(String content, String key) {
+        listSearch.clear();
+        listSearchRegex.clear();
+        if (regexOn) {
+            Pattern pattern = Pattern.compile(key);
+            Matcher matcher = pattern.matcher(content);
+            while (matcher.find()) {
+                ArrayList<Integer> temp = new ArrayList<>();
+                temp.add(matcher.start());
+                temp.add(matcher.end());
+                listSearchRegex.add(temp);
+//                System.out.println("Start index: " + matcher.start());
+//                System.out.println("End index: " + matcher.end());
+            }
+        } else {
+            for (int i = -1; (i = content.indexOf(key, i + 1)) != -1; i++) {
+                listSearch.add(i);
             }
         }
     }
@@ -173,6 +224,22 @@ public class TextEditor extends JFrame implements ActionListener {
         searchMenu.add(previousMenuItem);
         searchMenu.add(nextMenuItem);
         searchMenu.add(regExMenuItem);
+        searchMenuItem.addActionListener(event -> {
+            currentIndex = 0;
+            findByIndex();
+        });
+        nextMenuItem.addActionListener(event -> {
+            incrementIndex();
+            findByIndex();
+        });
+        previousMenuItem.addActionListener(event -> {
+            decrementIndex();
+            findByIndex();
+        });
+        regExMenuItem.addActionListener(event -> {
+            regexCheckbox.setSelected(true);
+            regexCheckbox.addItemListener(e -> regexOn = true);
+        });
     }
 
     private void displayFileMenu(JMenuBar menuBar) {
@@ -201,7 +268,7 @@ public class TextEditor extends JFrame implements ActionListener {
         exitMenuItem.addActionListener(event -> System.exit(0));
         newMenuItem.addActionListener(event -> {
             textArea.setText("");
-            filePath = null;
+            filePath = "";
         });
         saveMenuItem.addActionListener(event -> saveFile());
         openMenuItem.addActionListener(event -> readFile());
@@ -215,8 +282,14 @@ public class TextEditor extends JFrame implements ActionListener {
             currentIndex = 0;
         } else {
             currentIndex++;
-            if (currentIndex >= listSearch.size()) {
-                currentIndex = listSearch.size() - 1;
+            if (regexOn) {
+                if (currentIndex >= listSearchRegex.size()) {
+                    currentIndex = 0;
+                }
+            } else {
+                if (currentIndex >= listSearch.size()) {
+                    currentIndex = 0;
+                }
             }
         }
     }
@@ -224,18 +297,17 @@ public class TextEditor extends JFrame implements ActionListener {
     private void decrementIndex() {
         currentIndex--;
         if (currentIndex < 0) {
-            currentIndex = 0;
+            if (regexOn) {
+                currentIndex = listSearchRegex.size() - 1;
+            } else {
+                currentIndex = listSearch.size() - 1;
+            }
         }
     }
-    private void searchAll(String content, String key) {
-        listSearch.clear();
-        for (int i = -1; (i = content.indexOf(key, i + 1)) != -1; i++) {
-            listSearch.add(i);
-        }
-    }
+
     private void displayFileChooser() {
 //        chooser.setFileHidingEnabled(false);
-        int opt = chooser.showOpenDialog(this);
+        int opt = chooser.showOpenDialog(null);
         if (opt == JFileChooser.APPROVE_OPTION) {
             File file = chooser.getSelectedFile();
             this.filePath = file.getPath();
